@@ -1,0 +1,17 @@
+# IDE files
+.idea/
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Uploads folder
+uploads/
+
+# Environment variables
+.env
+
+# System files
+.DS_Store
+Thumbs.db
