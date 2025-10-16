@@ -21,20 +21,27 @@ st.set_page_config(
 )
 
 # --------------------------
+# --------------------------
 # Enhanced OpenCV & Video Handling
 # --------------------------
-try:
-    import cv2
+# Initialize session state for OpenCV status if not exists
+if 'opencv_checked' not in st.session_state:
+    try:
+        import cv2
+        st.session_state.cv2 = cv2
+        st.session_state.CV2_AVAILABLE = True
+        st.session_state.opencv_checked = True
+    except ImportError as e:
+        st.session_state.cv2 = None
+        st.session_state.CV2_AVAILABLE = False
+        st.session_state.opencv_checked = True
 
-    CV2_AVAILABLE = True
-except ImportError as e:
-    cv2 = None
-    CV2_AVAILABLE = False
-    st.error(f"❌ OpenCV import failed: {e}")
+# Use the session state variables
+CV2_AVAILABLE = st.session_state.get('CV2_AVAILABLE', False)
+cv2 = st.session_state.get('cv2', None)
 
 # Video processing IS available if OpenCV is available
 VIDEO_SUPPORTED = CV2_AVAILABLE
-
 # --------------------------
 # Constants and Configuration
 # --------------------------
@@ -791,13 +798,14 @@ def show_upload_data():
         st.error(f"❌ Model failed to load: {load_error}")
         return
 
-    # Show OpenCV status
-    if CV2_AVAILABLE:
-        st.success("✅ OpenCV loaded - Video processing ENABLED!")
-    else:
-        st.error("❌ OpenCV not available - Video processing disabled")
-        st.info("Please ensure 'opencv-python' is in requirements.txt")
-
+    # Show OpenCV status only once when page loads
+    if 'opencv_status_shown' not in st.session_state:
+        if CV2_AVAILABLE:
+            st.success("✅ OpenCV Headless loaded - Video processing ENABLED!")
+        else:
+            st.error("❌ OpenCV not available - Video processing disabled")
+            st.info("Please ensure 'opencv-python-headless' is in requirements.txt")
+        st.session_state.opencv_status_shown = True
     # Camera section
     st.subheader("📸 Camera Capture")
 
@@ -1026,9 +1034,10 @@ def show_settings():
 
     st.subheader("OpenCV Status")
     if CV2_AVAILABLE:
-        st.success("✅ OpenCV loaded successfully")
+        st.success("✅ OpenCV Headless loaded successfully")
         st.success("✅ Video processing ENABLED")
         st.success("✅ Multi-fruit detection ENABLED")
+        st.info("ℹ️ Using OpenCV Headless (optimized for cloud deployment)")
     else:
         st.error("❌ OpenCV not available")
         st.warning("⚠️ Video processing disabled")
