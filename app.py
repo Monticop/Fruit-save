@@ -151,11 +151,10 @@ def detect_multiple_fruits_enhanced(pil_image):
 
         # Color ranges for fruits
         color_ranges = [
-            ((0, 50, 50), (10, 255, 255)),  # Red (tomatoes)
-            ((10, 50, 50), (25, 255, 255)),  # Orange (oranges)
-            ((25, 50, 50), (35, 255, 255)),  # Yellow (carrots)
+            ((0, 100, 100), (10, 255, 255)),  # Red - more specific for tomatoes
+            ((10, 100, 100), (25, 255, 255)),  # Orange - more specific for oranges
+            ((20, 100, 100), (30, 255, 255)),  # Yellow-Orange for carrots
         ]
-
         combined_mask = np.zeros(cv_img.shape[:2], dtype=np.uint8)
 
         for lower, upper in color_ranges:
@@ -172,8 +171,12 @@ def detect_multiple_fruits_enhanced(pil_image):
 
         predictions = []
         img_h, img_w = cv_img.shape[:2]
-        min_area = (img_w * img_h) * 0.001
-        max_area = (img_w * img_h) * 0.3
+        min_area = (img_w * img_h) * 0.05  # Increased from 0.1% to 1% of image area
+        max_area = (img_w * img_h) * 0.3  # Reduced from 30% to 20% of image area
+
+        # Add aspect ratio filtering to exclude non-fruit shapes
+        aspect_ratio_min = 0.5  # Minimum width/height ratio
+        aspect_ratio_max = 2.0  # Maximum width/height ratio
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
@@ -181,8 +184,18 @@ def detect_multiple_fruits_enhanced(pil_image):
                 continue
 
             x, y, w, h = cv2.boundingRect(cnt)
+            aspect_ratio = w / h
+            if aspect_ratio < aspect_ratio_min or aspect_ratio > aspect_ratio_max:
+                continue
 
-            # Expand bounding box
+            # ADD THIS NEW SHAPE FILTER:
+            # Calculate circularity to filter non-fruit shapes
+            perimeter = cv2.arcLength(cnt, True)
+            if perimeter > 0:
+                circularity = 4 * np.pi * area / (perimeter * perimeter)
+                if circularity < 0.3:  # Fruits are generally roundish
+                    continue
+                # Expand bounding box
             padding = 10
             x = max(0, x - padding)
             y = max(0, y - padding)
@@ -193,7 +206,7 @@ def detect_multiple_fruits_enhanced(pil_image):
 
             try:
                 label, conf = predict_image(fruit_crop)
-                if conf >= 0.3:
+                if conf >= 0.6:
                     predictions.append((label, conf, fruit_crop))
             except Exception:
                 continue
@@ -298,8 +311,7 @@ def process_single_image_robust(image_path, filename):
         detections = detect_multiple_fruits_enhanced(img) if CV2_AVAILABLE else []
 
         if detections:
-            st.image(img, caption=f"🔍 Detected {len(detections)} fruits in {filename}", use_column_width=True)
-
+            st.image(img, caption=f"🔍 Detected {len(detections)} fruits in {filename}", use_container_width=True)
             cols = st.columns(min(3, len(detections)))
             for idx, (label, conf, crop) in enumerate(detections):
                 col_idx = idx % 3
@@ -318,7 +330,7 @@ def process_single_image_robust(image_path, filename):
             # Single image analysis
             label, conf = predict_image(img)
             emoji = "🔴" if conf < 0.5 else "🟠" if conf < 0.8 else "🟢"
-            st.image(img, caption=f"{emoji} {filename} → {label} ({conf * 100:.1f}%)", use_column_width=True)
+            st.image(img, caption=f"{emoji} {filename} → {label} ({conf * 100:.1f}%)", use_container_width=True)
 
             st.session_state.predictions.append((filename, label, f"{conf * 100:.1f}%"))
             st.session_state.counts[label] = st.session_state.counts.get(label, 0) + 1
@@ -462,7 +474,7 @@ def show_home():
     with col2:
         st.image(
             current_image["url"],
-            use_column_width=True,
+            use_container_width=True,
             caption=f"🔄 {current_image['caption']} • Auto-rotates every {rotation_interval} seconds"
         )
 
@@ -491,7 +503,7 @@ def show_home():
             manual_image = carousel_images[selected_index]
             st.image(
                 manual_image["url"],
-                use_column_width=True,
+                use_container_width=True,
                 caption=f"👆 {manual_image['caption']}"
             )
 
